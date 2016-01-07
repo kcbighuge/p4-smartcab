@@ -8,10 +8,10 @@ class LearningAgent(Agent):
 
     def __init__(self, env):
         super(LearningAgent, self).__init__(env)  # sets self.env = env, state = None, next_waypoint = None, and a default color
-        self.color = 'black'  # override color
+        self.color = 'blue'  # override color
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
         # TODO: Initialize any additional variables here
-        self.state['location'] == state['destination']
+
 
     def reset(self, destination=None):
         self.planner.route_to(destination)
@@ -25,8 +25,27 @@ class LearningAgent(Agent):
 
         # TODO: Update state
 
+
         # TODO: Select action according to your policy
         action = None
+
+        ###################################
+        # Test primary agent acting randomly
+        action_okay = True
+        if self.next_waypoint == 'right':
+            if inputs['light'] == 'red' and inputs['left'] == 'forward':
+                action_okay = False
+        elif self.next_waypoint == 'straight':
+            if inputs['light'] == 'red':
+                action_okay = False
+        elif self.next_waypoint == 'left':
+            if inputs['light'] == 'red' or (inputs['oncoming'] == 'forward' or inputs['oncoming'] == 'right'):
+                action_okay = False
+
+        if action_okay:
+            action = self.next_waypoint
+            self.next_waypoint = random.choice(Environment.valid_actions[1:3])
+        ###################################
 
         # Execute action and get reward
         reward = self.env.act(self, action)
@@ -42,7 +61,7 @@ def run():
     # Set up environment and agent
     e = Environment()  # create environment (also adds some dummy traffic)
     a = e.create_agent(LearningAgent)  # create agent
-    e.set_primary_agent(a, enforce_deadline=True)  # set agent to track
+    e.set_primary_agent(a, enforce_deadline=False)  # set agent to track
 
     # Now simulate it
     sim = Simulator(e)

@@ -182,7 +182,8 @@ class Environment(object):
                     reward += 10  # bonus
                 self.done = True
                 print "Environment.act(): Primary agent has reached destination!"  # [debug]
-            self.status_text = "state: {}\naction: {}\nreward: {}".format(agent.get_state(), action, reward)
+            self.status_text = "state: {}\naction: {}\nreward: {}\nlocation: {}".format(\
+                agent.get_state(), action, reward, location) # show location
             #print "Environment.act() [POST]: location: {}, heading: {}, action: {}, reward: {}".format(location, heading, action, reward)  # [debug]
 
         return reward
@@ -215,7 +216,7 @@ class Agent(object):
 
 
 class DummyAgent(Agent):
-    color_choices = ['blue', 'cyan', 'magenta', 'orange']
+    color_choices = ['orange', 'black']
 
     def __init__(self, env):
         super(DummyAgent, self).__init__(env)  # sets self.env = env, state = None, next_waypoint = None, and a default color
