@@ -50,4 +50,3 @@ It also gets a smaller reward for each correct move executed at an intersection.
 ## Goal
 
 Design the AI driving agent for the smartcab. It should receive the above-mentioned inputs at each time step t, and generate an output move. Based on the rewards and penalties it gets, the agent should learn an optimal policy for driving on city roads, obeying traffic rules correctly, and trying to reach the destination within a goal time.
-

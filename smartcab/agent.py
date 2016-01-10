@@ -51,6 +51,12 @@ class LearningAgent(Agent):
         reward = self.env.act(self, action)
 
         # TODO: Learn policy based on state, action, reward
+        # Q(s,a) = R(s) + γ ∑ T(s,a,s') max_a' Q(s',a')
+        # Q_hat(s,a) <-α r + γ max_a' Q_hat(s',a')
+        # U(s) = r + γ max_a' Q_hat(s',a')
+        Q_hat[t] = (1-alpha)*Q_hat[t] + (alpha* (reward + gamma * max(Q_hat[t+1])))
+        U(t) = reward + gamma * max(Q_hat[t+1])
+        ###################################
 
         print "LearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
 
