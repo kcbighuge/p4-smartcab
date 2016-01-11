@@ -11,15 +11,40 @@ class LearningAgent(Agent):
         self.color = 'blue'  # override color
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
         # TODO: Initialize any additional variables here
-        self.Qvalues = {}
+        self.Q = [[0, 0, 0, 0]]  ## None, 'forward', 'left', 'right'
+
+        ## initialize states
+        ## state = [inputs, self.next_waypoint, deadline, self.reward_tot]
+        self.S = [
+                    [0,0,0],
+                    [1,0,1],
+                    [1,1,1],
+                    [0,0,1]
+        ]  ## forward_ok, left_ok, right_ok
+
+        ## initialize actions
+        self.A = Environment.valid_actions  ## None, 'forward', 'left', 'right'
+
+        ## initialize rewards
+        self.R = [
+                    [0, -1, -1, -1],
+                    [0, 1, -1, 1],
+                    [0, 1, 1, 1],
+                    [0, -1, -1, 1]
+        ]  ## matrix of states S x action A
+
+        ## initialize total rewards
         self.reward_tot = 0
+
+        ## initialize epsilon for E-Greedy Exploration
+        self.epsilon = .5
 
 
     def reset(self, destination=None):
         self.planner.route_to(destination)
         # TODO: Prepare for a new trip; reset any variables here, if required
-        self.Qvalues = {}
         self.reward_tot = 0
+        self.epsilon = .5
 
 
     def update(self, t):
@@ -29,16 +54,30 @@ class LearningAgent(Agent):
         deadline = self.env.get_deadline(self)
 
         # TODO: Update state
-        state = [inputs, self.next_waypoint, deadline, self.reward_tot]
-        print state
+        ##print 'state:', state
 
         # TODO: Select action according to your policy
         action = None
 
+        ## auto-reset action
+        action = self.next_waypoint
+        self.next_waypoint = random.choice(Environment.valid_actions[:4])
+
+
+        ## simulated annealing: probability epsilon will take random action
+        if random.randint(1,100) < (self.epsilon * 100):
+            self.next_waypoint = random.choice(Environment.valid_actions[:4])
+        else:
+            self.next_waypoint = random.choice(Environment.valid_actions[1:2])
+
+        ## E-Greedy Exploration: decay epsilon
+        self.epsilon = self.epsilon/2
+
         ###################################
-        # Test primary agent acting randomly
-        action_okay = True
+        ## Test primary agent acting randomly
         '''
+        action_okay = True
+
         if self.next_waypoint == 'right':
             if inputs['light'] == 'red' and inputs['left'] == 'forward':
                 action_okay = False
@@ -48,10 +87,11 @@ class LearningAgent(Agent):
         elif self.next_waypoint == 'left':
             if inputs['light'] == 'red' or (inputs['oncoming'] == 'forward' or inputs['oncoming'] == 'right'):
                 action_okay = False
-        '''
+
         if action_okay:
             action = self.next_waypoint
             self.next_waypoint = random.choice(Environment.valid_actions[:4])
+        '''
         ###################################
 
         # Execute action and get reward
@@ -61,10 +101,10 @@ class LearningAgent(Agent):
         self.reward_tot += reward
 
         ###################################
-        # discount factor of next state/action Q value
-        gamma = 0.1
+        ## discount factor of next state/action Q value
+        gamma = 0.5
 
-        # learning rate, decay
+        ## learning rate, decay
         alpha = 0.5
 
         #self.Qvalues[t] = reward + gamma * max(Qvalues[t+1])
