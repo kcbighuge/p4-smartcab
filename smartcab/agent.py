@@ -11,11 +11,16 @@ class LearningAgent(Agent):
         self.color = 'blue'  # override color
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
         # TODO: Initialize any additional variables here
+        self.Qvalues = {}
+        self.reward_tot = 0
 
 
     def reset(self, destination=None):
         self.planner.route_to(destination)
         # TODO: Prepare for a new trip; reset any variables here, if required
+        self.Qvalues = {}
+        self.reward_tot = 0
+
 
     def update(self, t):
         # Gather inputs
@@ -24,7 +29,8 @@ class LearningAgent(Agent):
         deadline = self.env.get_deadline(self)
 
         # TODO: Update state
-
+        state = [inputs, self.next_waypoint, deadline, self.reward_tot]
+        print state
 
         # TODO: Select action according to your policy
         action = None
@@ -32,33 +38,40 @@ class LearningAgent(Agent):
         ###################################
         # Test primary agent acting randomly
         action_okay = True
+        '''
         if self.next_waypoint == 'right':
             if inputs['light'] == 'red' and inputs['left'] == 'forward':
                 action_okay = False
-        elif self.next_waypoint == 'straight':
+        elif self.next_waypoint == 'forward':
             if inputs['light'] == 'red':
                 action_okay = False
         elif self.next_waypoint == 'left':
             if inputs['light'] == 'red' or (inputs['oncoming'] == 'forward' or inputs['oncoming'] == 'right'):
                 action_okay = False
-
+        '''
         if action_okay:
             action = self.next_waypoint
-            self.next_waypoint = random.choice(Environment.valid_actions[1:3])
+            self.next_waypoint = random.choice(Environment.valid_actions[:4])
         ###################################
 
         # Execute action and get reward
         reward = self.env.act(self, action)
 
         # TODO: Learn policy based on state, action, reward
-        # Q(s,a) = R(s) + γ ∑ T(s,a,s') max_a' Q(s',a')
-        # Q_hat(s,a) <-α r + γ max_a' Q_hat(s',a')
-        # U(s) = r + γ max_a' Q_hat(s',a')
-        Q_hat[t] = (1-alpha)*Q_hat[t] + (alpha* (reward + gamma * max(Q_hat[t+1])))
-        U(t) = reward + gamma * max(Q_hat[t+1])
+        self.reward_tot += reward
+
+        ###################################
+        # discount factor of next state/action Q value
+        gamma = 0.1
+
+        # learning rate, decay
+        alpha = 0.5
+
+        #self.Qvalues[t] = reward + gamma * max(Qvalues[t+1])
+        #self.Qvalues[t+1] = (1-alpha)*Qvalues[t] + alpha*Qvalues[t]
         ###################################
 
-        print "LearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
+        print "\nLearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
 
 
 def run():
@@ -67,7 +80,7 @@ def run():
     # Set up environment and agent
     e = Environment()  # create environment (also adds some dummy traffic)
     a = e.create_agent(LearningAgent)  # create agent
-    e.set_primary_agent(a, enforce_deadline=False)  # set agent to track
+    e.set_primary_agent(a, enforce_deadline=True)  # set agent to track
 
     # Now simulate it
     sim = Simulator(e)
