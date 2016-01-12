@@ -30,13 +30,16 @@ class LearningAgent(Agent):
         ## keep track of n_trials
         self.current_trial = 0
 
+        ## keep track of results
+        self.results = []
+
 
     def reset(self, destination=None):
         self.planner.route_to(destination)
         # TODO: Prepare for a new trip; reset any variables here, if required
         self.reward_sum = 0
         self.current_trial += 1
-        self.epsilon = max(0.95 - .2*(self.current_trial/3), .01)  ## decay epsilon, 100 trials
+        self.epsilon = max(0.95 - .2*(self.current_trial/4), .01)  ## decay epsilon, 100 trials
         self.transitions = {}
         self.init_deadline = self.env.get_deadline(self)
 
@@ -75,8 +78,10 @@ class LearningAgent(Agent):
         if deadline > 5:
             self.epsilon = self.epsilon*.95
         else:
-            self.epsilon = self.epsilon*.5
+            self.epsilon = self.epsilon*.75
         print 'epsilon:', self.epsilon  ## [debug]
+
+        ## Boltzmann exploration: P(a) = exp(Q(s,a) / sum(exp(Q)) / K), decay K over time
 
         # Execute action and get reward
         reward = self.env.act(self, action)
@@ -96,9 +101,10 @@ class LearningAgent(Agent):
         alpha = 0.2  ## learning rate, decay
 
         ## update Q table
-        if t == 0:
-            self.Q[current_state][self.A.index(action)] = alpha * reward
-        else:
+        if self.Q[current_state] == [0,0,0,0]:
+            self.Q[current_state] = [.5,.5,.5,.5]
+            self.Q[current_state][self.A.index(action)] = 0
+        if t!=0:
             self.Q[self.transitions[t-1][0]][self.transitions[t-1][1]] = \
                 (1-alpha)*self.Q[self.transitions[t-1][0]][self.transitions[t-1][1]] + \
                 (alpha * (self.transitions[t-1][2] + gamma * self.Q[current_state][max_Q]))
@@ -106,8 +112,14 @@ class LearningAgent(Agent):
             self.Q[current_state][self.A.index(action)] = \
                 (1-alpha)*self.Q[current_state][self.A.index(action)] + \
                 (alpha * reward)
+            self.results.append(('Win!',self.init_deadline))  ## track wins
+            print 'results:',self.results
+        else:
+            if deadline == 0:
+                self.results.append(('Failed',self.init_deadline))  ## track fails
+                print 'results:',self.results
 
-        print '----\nQ({}): {}'.format(len(self.Q), self.Q)  ## [debug]
+        print "----\nQ({}): {}".format(len(self.Q), self.Q)  ## [debug]
         print "----\nLearningAgent.update({}): deadline = {}/{}, inputs = {}, action = {}, reward = {}".format(t, deadline, self.init_deadline, inputs, action, reward)  # [debug]
 
 
@@ -121,7 +133,7 @@ def run():
 
     # Now simulate it
     sim = Simulator(e)
-    sim.run(n_trials=100)  # press Esc or close pygame window to quit
+    sim.run(n_trials=40)  # press Esc or close pygame window to quit
 
 
 if __name__ == '__main__':
