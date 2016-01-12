@@ -11,40 +11,48 @@ class LearningAgent(Agent):
         self.color = 'blue'  # override color
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
         # TODO: Initialize any additional variables here
-        self.Q = [[0, 0, 0, 0]]  ## None, 'forward', 'left', 'right'
+        self.Q = [
+            [0, 0, 0, 0], [0, 0, 0, 0],
+            [0, 0, 0, 0], [0, 0, 0, 0],
+            [0, 0, 0, 0], [0, 0, 0, 0],
+            [0, 0, 0, 0], [0, 0, 0, 0]
+            ]  ## None, 'forward', 'left', 'right'
 
-        ## initialize states
-        ## state = [inputs, self.next_waypoint, deadline, self.reward_tot]
+        ## states S
         self.S = [
-                    [0,0,0],
-                    [1,0,1],
-                    [1,1,1],
-                    [0,0,1]
-        ]  ## forward_ok, left_ok, right_ok
+            (0,0,0, True), (0,0,0, False),
+            (1,0,1, True), (1,0,1, False),
+            (1,1,1, True), (1,1,1, False),
+            (0,0,1, True), (0,0,1, False)
+            ]  ## forward_ok, left_ok, right_ok, done??
 
-        ## initialize actions
+        ## actions A
         self.A = Environment.valid_actions  ## None, 'forward', 'left', 'right'
 
-        ## initialize rewards
+        ## rewards R
         self.R = [
-                    [0, -1, -1, -1],
-                    [0, 1, -1, 1],
-                    [0, 1, 1, 1],
-                    [0, -1, -1, 1]
-        ]  ## matrix of states S x action A
+            [10, -1, -1, -1], [0, -1, -1, -1],
+            [10,  1, -1,  1], [0,  1, -1,  1],
+            [10,  1,  1,  1], [0,  1,  1,  1],
+            [10, -1, -1,  1], [0, -1, -1,  1]
+            ]  ## matrix of states S x action A
 
-        ## initialize total rewards
-        self.reward_tot = 0
+        ## total rewards
+        self.reward_sum = 0
 
-        ## initialize epsilon for E-Greedy Exploration
-        self.epsilon = .5
+        ## epsilon for E-Greedy Exploration
+        self.epsilon = .8
+
+        ## keep track of states by step t
+        self.state_history = {}
 
 
     def reset(self, destination=None):
         self.planner.route_to(destination)
         # TODO: Prepare for a new trip; reset any variables here, if required
-        self.reward_tot = 0
-        self.epsilon = .5
+        self.reward_sum = 0
+        self.epsilon = .8
+        self.state_history = {}
 
 
     def update(self, t):
@@ -54,24 +62,37 @@ class LearningAgent(Agent):
         deadline = self.env.get_deadline(self)
 
         # TODO: Update state
-        ##print 'state:', state
+        if inputs['light'] == 'red' and inputs['left'] == 'forward':
+            current_state = 1  ## only None allowed
+        elif inputs['light'] == 'red' and inputs['left'] != 'forward':
+            current_state = 7  ## only right allowed
+        elif inputs['light'] == 'green' and (inputs['oncoming'] == 'forward' or inputs['oncoming'] == 'right'):
+            current_state = 3  ## forward, right allowed
+        elif inputs['light'] == 'green' and not (inputs['oncoming'] == 'forward' or inputs['oncoming'] == 'right'):
+            current_state = 5  ## any allowed
 
         # TODO: Select action according to your policy
         action = None
 
-        ## auto-reset action
-        action = self.next_waypoint
-        self.next_waypoint = random.choice(Environment.valid_actions[:4])
+        ## simulated annealing: take random action w/ probability epsilon
+        print '----------------------------'
 
+        ## assign max Q value for current state
+        max_Q = self.Q[current_state].index(max(self.Q[current_state]))
 
-        ## simulated annealing: probability epsilon will take random action
+        ## generate random number to test if < epsilon
         if random.randint(1,100) < (self.epsilon * 100):
-            self.next_waypoint = random.choice(Environment.valid_actions[:4])
+            action = random.choice(self.A)
+            print 'Step {}: Random Action!!'.format(t)
         else:
-            self.next_waypoint = random.choice(Environment.valid_actions[1:2])
+            action = self.A[max_Q]
+            print 'Step {}: Optimal Action!!'.format(t)
+
+        self.state_history[t] = [current_state, self.A.index(action)]
 
         ## E-Greedy Exploration: decay epsilon
-        self.epsilon = self.epsilon/2
+        self.epsilon = self.epsilon*.99
+        print 'epsilon:', self.epsilon  ## [debug]
 
         ###################################
         ## Test primary agent acting randomly
@@ -98,20 +119,23 @@ class LearningAgent(Agent):
         reward = self.env.act(self, action)
 
         # TODO: Learn policy based on state, action, reward
-        self.reward_tot += reward
+        self.reward_sum += reward  ## keep track sum of rewards
+        print 'reward sum: {}'.format(self.reward_sum)  ## [debug]
 
-        ###################################
-        ## discount factor of next state/action Q value
-        gamma = 0.5
+        ## Q-learning params
+        gamma = 0.9  ## discount factor of next state/action Q value
+        alpha = 0.2  ## learning rate, decay
 
-        ## learning rate, decay
-        alpha = 0.5
+        ## update Q table
+        if t == 0:
+            self.Q[current_state][self.A.index(action)] = reward
+        else:
+            self.Q[self.state_history[t-1][0]][self.state_history[t-1][1]] = \
+                (1-alpha)*self.Q[self.state_history[t-1][0]][self.state_history[t-1][1]] + \
+                (alpha * (reward + gamma * self.Q[current_state][max_Q]))
+        print 'Q: {}'.format(self.Q)  ## [debug]
 
-        #self.Qvalues[t] = reward + gamma * max(Qvalues[t+1])
-        #self.Qvalues[t+1] = (1-alpha)*Qvalues[t] + alpha*Qvalues[t]
-        ###################################
-
-        print "\nLearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
+        print "\nLearningAgent.update({}): deadline = {}, inputs = {}, action = {}, reward = {}".format(t, deadline, inputs, action, reward)  # [debug]
 
 
 def run():
