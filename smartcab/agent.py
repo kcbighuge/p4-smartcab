@@ -45,8 +45,8 @@ class LearningAgent(Agent):
         ## epsilon for E-Greedy Exploration
         self.epsilon = 0.8
 
-        ## keep track of states by step t
-        self.state_history = {}
+        ## keep track of transitions by step t
+        self.transitions = {}
 
         ## keep track of n_trials
         self.current_trial = 0
@@ -57,15 +57,15 @@ class LearningAgent(Agent):
         # TODO: Prepare for a new trip; reset any variables here, if required
         self.reward_sum = 0
         self.current_trial += 1
-        self.epsilon = 0.999 * (1. / self.current_trial)
-        self.state_history = {}
+        self.epsilon = 0.99 - (.01 * (self.current_trial-1))  ## decay epsilon, 100 trials
+        self.transitions = {}
 
 
     def update(self, t):
-        print '----------------'
+        print '================'
         # Gather inputs
         self.next_waypoint = self.planner.next_waypoint()  # from route planner, also displayed by simulator
-        print'next_waypoint: {}\n ----'.format(self.next_waypoint)  ## [debug]
+        print'next_waypoint: {}\n----'.format(self.next_waypoint)  ## [debug]
         inputs = self.env.sense(self)
         deadline = self.env.get_deadline(self)
 
@@ -94,55 +94,42 @@ class LearningAgent(Agent):
             action = self.A[max_Q]
             print 'Step {}: Optimal Action!!'.format(t)
 
-        ## update history of states visited
-        self.state_history[t] = [current_state, self.A.index(action)]
-
         ## E-Greedy Exploration: decay epsilon
-        self.epsilon = self.epsilon*.999
+        self.epsilon = self.epsilon*.91
         print 'epsilon:', self.epsilon  ## [debug]
-
-        ###################################
-        ## Test primary agent acting randomly
-        '''
-        action_okay = True
-
-        if self.next_waypoint == 'right':
-            if inputs['light'] == 'red' and inputs['left'] == 'forward':
-                action_okay = False
-        elif self.next_waypoint == 'forward':
-            if inputs['light'] == 'red':
-                action_okay = False
-        elif self.next_waypoint == 'left':
-            if inputs['light'] == 'red' or (inputs['oncoming'] == 'forward' or inputs['oncoming'] == 'right'):
-                action_okay = False
-
-        if action_okay:
-            action = self.next_waypoint
-            self.next_waypoint = random.choice(Environment.valid_actions[:4])
-        '''
-        ###################################
 
         # Execute action and get reward
         reward = self.env.act(self, action)
 
         # TODO: Learn policy based on state, action, reward
-        self.reward_sum += reward  ## keep track sum of rewards
+
+        ## keep track sum of rewards
+        self.reward_sum += reward
         print 'reward sum: {}'.format(self.reward_sum)  ## [debug]
+
+        ## update history of states visited
+        self.transitions[t] = (current_state, self.A.index(action), reward)
+        print 'state history:', self.transitions[t]  ## [debug]
 
         ## Q-learning params
         gamma = 0.8  ## discount factor of next state/action Q value
-        alpha = 0.5  ## learning rate, decay
+        alpha = 0.2  ## learning rate, decay
 
         ## update Q table
         if t == 0:
-            self.Q[current_state][self.A.index(action)] = reward
+            self.Q[current_state][self.A.index(action)] = alpha * reward
         else:
-            self.Q[self.state_history[t-1][0]][self.state_history[t-1][1]] = \
-                (1-alpha)*self.Q[self.state_history[t-1][0]][self.state_history[t-1][1]] + \
-                (alpha * (reward + gamma * self.Q[current_state][max_Q]))
-        print 'Q: {}'.format(self.Q)  ## [debug]
+            self.Q[self.transitions[t-1][0]][self.transitions[t-1][1]] = \
+                (1-alpha)*self.Q[self.transitions[t-1][0]][self.transitions[t-1][1]] + \
+                (alpha * (self.transitions[t-1][2] + gamma * self.Q[current_state][max_Q]))
+        if reward > 2:
+            self.Q[current_state][self.A.index(action)] = \
+                (1-alpha)*self.Q[current_state][self.A.index(action)] + \
+                (alpha * reward)
 
-        print "\nLearningAgent.update({}): deadline = {}, inputs = {}, action = {}, reward = {}".format(t, deadline, inputs, action, reward)  # [debug]
+        print 'Q: {}\n{}'.format(self.Q[:2], self.Q[2:])  ## [debug]
+
+        print "----\nLearningAgent.update({}): deadline = {}, inputs = {}, action = {}, reward = {}".format(t, deadline, inputs, action, reward)  # [debug]
 
 
 def run():
@@ -155,7 +142,7 @@ def run():
 
     # Now simulate it
     sim = Simulator(e)
-    sim.run(n_trials=5)  # press Esc or close pygame window to quit
+    sim.run(n_trials=100)  # press Esc or close pygame window to quit
 
 
 if __name__ == '__main__':
