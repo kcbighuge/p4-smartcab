@@ -14,6 +14,9 @@ class TrafficLight(object):
         self.period = period if period is not None else random.choice([3, 4, 5])
         self.last_updated = 0
 
+    def reset(self):
+        self.last_updated = 0
+
     def update(self, t):
         if t - self.last_updated >= self.period:
             self.state = not self.state  # assuming state is boolean
@@ -72,6 +75,10 @@ class Environment(object):
         self.done = False
         self.t = 0
 
+        # Reset traffic lights
+        for traffic_light in self.intersections.itervalues():
+            traffic_light.reset()
+
         # Pick a start and a destination
         start = random.choice(self.intersections.keys())
         destination = random.choice(self.intersections.keys())
@@ -82,7 +89,7 @@ class Environment(object):
             destination = random.choice(self.intersections.keys())
 
         start_heading = random.choice(self.valid_headings)
-        deadline = self.compute_dist(start, destination) * 3
+        deadline = self.compute_dist(start, destination) * 5
         print "Environment.reset(): Trial set up with start = {}, destination = {}, deadline = {}".format(start, destination, deadline)
 
         # Initialize agent(s)
@@ -127,15 +134,16 @@ class Environment(object):
         for other_agent, other_state in self.agent_states.iteritems():
             if agent == other_agent or location != other_state['location'] or (heading[0] == other_state['heading'][0] and heading[1] == other_state['heading'][1]):
                 continue
+            other_heading = other_agent.get_next_waypoint()
             if (heading[0] * other_state['heading'][0] + heading[1] * other_state['heading'][1]) == -1:
                 if oncoming != 'left':  # we don't want to override oncoming == 'left'
-                    oncoming = other_agent.next_waypoint
+                    oncoming = other_heading
             elif (heading[1] == other_state['heading'][0] and -heading[0] == other_state['heading'][1]):
                 if right != 'forward' and right != 'left':  # we don't want to override right == 'forward or 'left'
-                    right = other_agent.next_waypoint
+                    right = other_heading
             else:
                 if left != 'forward':  # we don't want to override left == 'forward'
-                    left = other_agent.next_waypoint
+                    left = other_heading
 
         return {'light': light, 'oncoming': oncoming, 'left': left, 'right': right}  # TODO: make this a namedtuple
 
@@ -172,9 +180,11 @@ class Environment(object):
                 #if self.bounds[0] <= location[0] <= self.bounds[2] and self.bounds[1] <= location[1] <= self.bounds[3]:  # bounded
                 state['location'] = location
                 state['heading'] = heading
-                reward = 1
+                reward = 2 if action == agent.get_next_waypoint() else 0.5
             else:
                 reward = -1
+        else:
+            reward = 1
 
         if agent is self.primary_agent:
             if state['location'] == state['destination']:
@@ -182,8 +192,7 @@ class Environment(object):
                     reward += 10  # bonus
                 self.done = True
                 print "Environment.act(): Primary agent has reached destination!"  # [debug]
-            self.status_text = "state: {}\naction: {}\nreward: {}\nlocation: {}".format(\
-                agent.get_state(), action, reward, location) # show location
+            self.status_text = "state: {}\naction: {}\nreward: {}".format(agent.get_state(), action, reward)
             #print "Environment.act() [POST]: location: {}, heading: {}, action: {}, reward: {}".format(location, heading, action, reward)  # [debug]
 
         return reward
@@ -216,7 +225,7 @@ class Agent(object):
 
 
 class DummyAgent(Agent):
-    color_choices = ['orange', 'black']
+    color_choices = ['blue', 'cyan', 'magenta', 'orange']
 
     def __init__(self, env):
         super(DummyAgent, self).__init__(env)  # sets self.env = env, state = None, next_waypoint = None, and a default color
@@ -230,7 +239,7 @@ class DummyAgent(Agent):
         if self.next_waypoint == 'right':
             if inputs['light'] == 'red' and inputs['left'] == 'forward':
                 action_okay = False
-        elif self.next_waypoint == 'forward': # changed value from 'straight'
+        elif self.next_waypoint == 'straight':
             if inputs['light'] == 'red':
                 action_okay = False
         elif self.next_waypoint == 'left':

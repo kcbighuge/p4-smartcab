@@ -18,7 +18,7 @@ class Simulator(object):
         'orange'  : (255, 128,   0)
     }
 
-    def __init__(self, env, size=None, frame_delay=10):
+    def __init__(self, env, size=None, frame_delay=10, update_delay=1.0):
         self.env = env
         self.size = size if size is not None else ((self.env.grid_size[0] + 1) * self.env.block_size, (self.env.grid_size[1] + 1) * self.env.block_size)
         self.width, self.height = self.size
@@ -32,7 +32,7 @@ class Simulator(object):
         self.start_time = None
         self.current_time = 0.0
         self.last_updated = 0.0
-        self.update_delay = 1.0
+        self.update_delay = update_delay
 
         pygame.init()
         self.screen = pygame.display.set_mode(self.size)
@@ -49,7 +49,7 @@ class Simulator(object):
     def run(self, n_trials=1):
         self.quit = False
         for trial in xrange(n_trials):
-            print '\n#### Trial #{}\n'.format(trial)  ## [debug]
+            print "Simulator.run(): Trial {}".format(trial)  # [debug]
             self.env.reset()
             self.current_time = 0.0
             self.last_updated = 0.0
@@ -85,7 +85,7 @@ class Simulator(object):
                     if self.quit or self.env.done:
                         break
 
-            if self.quit or self.env.done:
+            if self.quit:
                 break
 
     def render(self):
@@ -128,6 +128,7 @@ class Simulator(object):
                 self.screen.blit(self.font.render(agent.get_next_waypoint(), True, agent_color, self.bg_color), (agent_pos[0] + 10, agent_pos[1] + 10))
             if state['destination'] is not None:
                 pygame.draw.circle(self.screen, agent_color, (state['destination'][0] * self.env.block_size, state['destination'][1] * self.env.block_size), 6)
+                pygame.draw.circle(self.screen, agent_color, (state['destination'][0] * self.env.block_size, state['destination'][1] * self.env.block_size), 15, 2)
 
         # * Overlays
         text_y = 10
