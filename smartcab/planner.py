@@ -16,6 +16,9 @@ class RoutePlanner(object):
         location = self.env.agent_states[self.agent]['location']
         heading = self.env.agent_states[self.agent]['heading']
         delta = (self.destination[0] - location[0], self.destination[1] - location[1])
+        print 'delta is: {}'.format(delta)  ## [debug]
+        print 'heading is: {}'.format(heading)  ## [debug]
+        print 'loc is: {}'.format(location)  ## [debug]
         if delta[0] == 0 and delta[1] == 0:
             return None
         elif delta[0] != 0:  # EW difference
@@ -23,7 +26,7 @@ class RoutePlanner(object):
                 return 'forward'
             elif delta[0] * heading[0] < 0:  # facing opposite EW direction
                 return 'right'  # long U-turn
-            elif delta[0] * heading[1] > 0:
+            elif delta[0] * heading[1] < 0:
                 return 'right'
             else:
                 return 'left'
