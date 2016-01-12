@@ -12,32 +12,11 @@ class LearningAgent(Agent):
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
         # TODO: Initialize any additional variables here
 
-        ## Q initialized with zeros
-        self.Q = [
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0],
-            [0, 0, 0, 0]
-            ]  ## None, 'forward', 'left', 'right'
-
-        ## states S
-        self.S = [
-            (0,0,0),
-            (1,0,1),
-            (1,1,1),
-            (0,0,1)
-            ]  ## forward_ok, left_ok, right_ok
+        ## Q table
+        self.Q = {}  ## dict with states S as key, actions A as value
 
         ## actions A
         self.A = Environment.valid_actions  ## None, 'forward', 'left', 'right'
-
-        ## rewards R
-        self.R = [
-            [1, -1, -1, -1], [1, -1, -1, -1], [1, -1, -1, -1],
-            [1,  2, -1, .5], [1, .5, -1, .5], [1, .5, -1,  2],
-            [1,  2, .5, .5], [1, .5,  2, .5], [1, .5, .5,  2],
-            [1, -1, -1, .5], [1, -1, -1, .5], [1, -1, -1,  2]
-            ]  ## matrix of (states S x next_waypoint) x action A
 
         ## total rewards
         self.reward_sum = 0
@@ -57,8 +36,9 @@ class LearningAgent(Agent):
         # TODO: Prepare for a new trip; reset any variables here, if required
         self.reward_sum = 0
         self.current_trial += 1
-        self.epsilon = 0.99 - (.01 * (self.current_trial-1))  ## decay epsilon, 100 trials
+        self.epsilon = max(0.95 - .2*(self.current_trial/3), .01)  ## decay epsilon, 100 trials
         self.transitions = {}
+        self.init_deadline = self.env.get_deadline(self)
 
 
     def update(self, t):
@@ -70,22 +50,19 @@ class LearningAgent(Agent):
         deadline = self.env.get_deadline(self)
 
         # TODO: Update state
-        if inputs['light'] == 'red' and inputs['left'] == 'forward':
-            current_state = 0  ## only None allowed
-        elif inputs['light'] == 'red' and inputs['left'] != 'forward':
-            current_state = 3  ## only right allowed
-        elif inputs['light'] == 'green' and (inputs['oncoming'] == 'forward' or inputs['oncoming'] == 'right'):
-            current_state = 1  ## forward, right allowed
-        elif inputs['light'] == 'green' and not (inputs['oncoming'] == 'forward' or inputs['oncoming'] == 'right'):
-            current_state = 2  ## any allowed
+        current_state = tuple(inputs.values() + [self.next_waypoint])
 
         # TODO: Select action according to your policy
         action = None
 
-        ## simulated annealing: take random action w/ probability epsilon
+        ## create new Q(s,a) entry if not in dict
+        if current_state not in self.Q.keys():
+            self.Q[current_state] = [0, 0, 0, 0]
+
         ## assign max Q value for current state
         max_Q = self.Q[current_state].index(max(self.Q[current_state]))
 
+        ## simulated annealing: take random action w/ probability epsilon
         ## generate random number to test if < epsilon
         if random.randint(1,100) <= (self.epsilon * 100):
             action = random.choice(self.A)
@@ -95,7 +72,10 @@ class LearningAgent(Agent):
             print 'Step {}: Optimal Action!!'.format(t)
 
         ## E-Greedy Exploration: decay epsilon
-        self.epsilon = self.epsilon*.91
+        if deadline > 5:
+            self.epsilon = self.epsilon*.95
+        else:
+            self.epsilon = self.epsilon*.5
         print 'epsilon:', self.epsilon  ## [debug]
 
         # Execute action and get reward
@@ -109,7 +89,7 @@ class LearningAgent(Agent):
 
         ## update history of states visited
         self.transitions[t] = (current_state, self.A.index(action), reward)
-        print 'state history:', self.transitions[t]  ## [debug]
+        print 'transition:', self.transitions[t]  ## [debug]
 
         ## Q-learning params
         gamma = 0.8  ## discount factor of next state/action Q value
@@ -127,9 +107,8 @@ class LearningAgent(Agent):
                 (1-alpha)*self.Q[current_state][self.A.index(action)] + \
                 (alpha * reward)
 
-        print 'Q: {}\n{}'.format(self.Q[:2], self.Q[2:])  ## [debug]
-
-        print "----\nLearningAgent.update({}): deadline = {}, inputs = {}, action = {}, reward = {}".format(t, deadline, inputs, action, reward)  # [debug]
+        print '----\nQ({}): {}'.format(len(self.Q), self.Q)  ## [debug]
+        print "----\nLearningAgent.update({}): deadline = {}/{}, inputs = {}, action = {}, reward = {}".format(t, deadline, self.init_deadline, inputs, action, reward)  # [debug]
 
 
 def run():

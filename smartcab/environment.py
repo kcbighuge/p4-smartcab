@@ -194,7 +194,6 @@ class Environment(object):
                 print "Environment.act(): Primary agent has reached destination!"  # [debug]
             self.status_text = "state: {}\naction: {}\nreward: {}".format(agent.get_state(), action, reward)
             #print "Environment.act() [POST]: location: {}, heading: {}, action: {}, reward: {}".format(location, heading, action, reward)  # [debug]
-            print 'heading change to: {}'.format(heading)  ## [debug]
 
         return reward
 
