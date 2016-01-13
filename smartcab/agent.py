@@ -40,7 +40,7 @@ class LearningAgent(Agent):
         # TODO: Prepare for a new trip; reset any variables here, if required
         self.reward_sum = 0
         self.current_trial += 1
-        self.epsilon = 0.95 - .2*(self.current_trial/5)  ## decay epsilon, 100 trials
+        self.epsilon = 0.95 - .1*(self.current_trial/9)  ## decay epsilon, 100 trials
         self.transitions = {}
         self.init_deadline = self.env.get_deadline(self)
         self.optimal_action_used = []
@@ -90,7 +90,7 @@ class LearningAgent(Agent):
         if self.next_waypoint == 'right':
             if inputs['light'] == 'red' and inputs['left'] == 'forward':
                 best_action_ok = False
-        elif self.next_waypoint == 'straight':
+        elif self.next_waypoint == 'forward':
             if inputs['light'] == 'red':
                 best_action_ok = False
         elif self.next_waypoint == 'left':
@@ -125,9 +125,11 @@ class LearningAgent(Agent):
         alpha = 0.2  ## learning rate, decay
 
         ## update Q table
+        ''' experiment to initialize Q values with .5
         if self.Q[current_state] == [0,0,0,0]:
             self.Q[current_state] = [.5,.5,.5,.5]
             self.Q[current_state][self.A.index(action)] = 0
+        '''
 
         if t!=0:
             self.Q[self.transitions[t-1][0]][self.transitions[t-1][1]] = \
@@ -165,7 +167,7 @@ def run():
 
     # Now simulate it
     sim = Simulator(e)
-    sim.run(n_trials=30)  # press Esc or close pygame window to quit
+    sim.run(n_trials=100)  # press Esc or close pygame window to quit
 
 
 if __name__ == '__main__':
