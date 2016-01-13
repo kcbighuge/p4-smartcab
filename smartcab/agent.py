@@ -22,7 +22,7 @@ class LearningAgent(Agent):
         self.reward_sum = 0
 
         ## epsilon for E-Greedy Exploration
-        self.epsilon = 0.8
+        self.epsilon = 0.1
 
         ## keep track of transitions by step t
         self.transitions = {}
@@ -40,7 +40,7 @@ class LearningAgent(Agent):
         # TODO: Prepare for a new trip; reset any variables here, if required
         self.reward_sum = 0
         self.current_trial += 1
-        self.epsilon = 0.95 - .1*(self.current_trial/9)  ## decay epsilon, 100 trials
+        self.epsilon = 0.5 - .05*(self.current_trial/4)  ## decay epsilon, 100 trials
         self.transitions = {}
         self.init_deadline = self.env.get_deadline(self)
         self.optimal_action_used = []
@@ -49,7 +49,6 @@ class LearningAgent(Agent):
     def update(self, t):
         # Gather inputs
         self.next_waypoint = self.planner.next_waypoint()  # from route planner, also displayed by simulator
-        print'next_waypoint: {}\n----'.format(self.next_waypoint)  ## [debug]
         inputs = self.env.sense(self)
         deadline = self.env.get_deadline(self)
 
@@ -61,7 +60,7 @@ class LearningAgent(Agent):
 
         ## create new Q(s,a) entry if not in dict
         if current_state not in self.Q.keys():
-            self.Q[current_state] = [0, 0, 0, 0]
+            self.Q[current_state] = [3, 3, 3, 3]
 
         ## assign max Q value for current state
         max_Q = self.Q[current_state].index(max(self.Q[current_state]))
@@ -70,17 +69,14 @@ class LearningAgent(Agent):
         ## generate random number to test if < epsilon
         if random.randint(1,100) <= (self.epsilon * 100):
             action = random.choice(self.A)
-            print 'Step {}: Random Action!!'.format(t)
+            print 'Step {}: Random Action!!'.format(t)  ## [debug]
         else:
             action = self.A[max_Q]
-            print 'Step {}: Optimal Action!!'.format(t)
+            print 'Step {}: Optimal Action!!'.format(t)  ## [debug]
 
         ## E-Greedy Exploration: decay epsilon
-        if deadline > 5:
-            self.epsilon = self.epsilon*.95
-        else:
-            self.epsilon = self.epsilon*.75
-        print 'epsilon:', self.epsilon  ## [debug]
+        self.epsilon = self.epsilon*.9
+        #print 'epsilon:', self.epsilon  ## [debug]
 
         ## Boltzmann exploration: P(a) = exp(Q(s,a) / sum(exp(Q)) / K), decay K over time
 
@@ -121,16 +117,10 @@ class LearningAgent(Agent):
         print 'transition:', self.transitions[t]  ## [debug]
 
         ## Q-learning params
-        gamma = 0.8  ## discount factor of next state/action Q value
+        gamma = 0.5  ## discount factor of next state/action Q value
         alpha = 0.2  ## learning rate, decay
 
         ## update Q table
-        ''' experiment to initialize Q values with .5
-        if self.Q[current_state] == [0,0,0,0]:
-            self.Q[current_state] = [.5,.5,.5,.5]
-            self.Q[current_state][self.A.index(action)] = 0
-        '''
-
         if t!=0:
             self.Q[self.transitions[t-1][0]][self.transitions[t-1][1]] = \
                 (1-alpha)*self.Q[self.transitions[t-1][0]][self.transitions[t-1][1]] + \
@@ -167,7 +157,7 @@ def run():
 
     # Now simulate it
     sim = Simulator(e)
-    sim.run(n_trials=100)  # press Esc or close pygame window to quit
+    sim.run(n_trials=50)  # press Esc or close pygame window to quit
 
 
 if __name__ == '__main__':
