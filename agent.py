@@ -131,11 +131,10 @@ class LearningAgent(Agent):
         ## increment sum of rewards
         self.reward_sum += reward
         ##print 'reward sum: {}'.format(self.reward_sum)  ## [debug]
-        ##print 'next waypoint: %s' % self.next_waypoint  ## [debug]
 
         ## update history of states visited
         self.transitions[t] = (current_state, self.A.index(action), reward)
-        print 'transition:', self.transitions[t]  ## [debug]
+        ##print 'transition:', self.transitions[t]  ## [debug]
 
         ## Q-learning params
         gamma = 0.5  ## discount factor of max Q(s',a')
@@ -154,10 +153,10 @@ class LearningAgent(Agent):
                 (alpha * reward)
 
             self.results.append(('Win!',self.init_deadline))  ## track wins
-            print 'results:',self.results
+            ##print 'results:',self.results  ## [debug]
 
             self.optimal_policy_used.append((sum(self.optimal_action_used), len(self.optimal_action_used)))  ## track optimal policy moves
-            print 'optimal policy used: {}'.format(self.optimal_policy_used)
+            ##print 'optimal policy used: {}'.format(self.optimal_policy_used)  ## [debug]
 
         else:  ## if destination not reached
             if deadline == 0:
@@ -166,11 +165,10 @@ class LearningAgent(Agent):
                     (alpha * reward)
 
                 self.results.append(('Failed',self.init_deadline))  ## track fails
-                print 'results:',self.results
+                ##print 'results:',self.results  ## [debug]
 
-        print "Q({}): {}".format(len(self.Q), self.Q)  ## [debug]
+        ##print "Q({}): {}".format(len(self.Q), self.Q)  ## [debug]
         print "LearningAgent.update({}): deadline = {}/{}, inputs = {}, action = {}, reward = {}".format(t, deadline, self.init_deadline, inputs, action, reward)  # [debug]
-        print "============"
 
 
 def run():
