@@ -12,14 +12,15 @@ class LearningAgent(Agent):
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
         # TODO: Initialize any additional variables here
 
-        ## Q table
-        self.Q = {}
-
         ## actions A
         self.A = Environment.valid_actions  ## None, 'forward', 'left', 'right'
 
-        ## keep track of transitions by step t
-        self.transitions = {}
+        ## Q table: state = (light, oncoming, next_waypoint)
+        self.Q = {}
+        for i in ['green', 'red']:  ## loop thru possible lights
+            for j in ['oncoming','no_oncoming']:  ## oncoming traffic or not
+                for k in self.A:  ## loop through next_waypoints
+                    self.Q[(i,j,k)] = [3] * len(self.A)  ## init Q(s,a)
 
         ''' Extra variables
         ## keep track of total rewards earned
@@ -36,15 +37,12 @@ class LearningAgent(Agent):
 
         ## keep track of optimal policy used as tuples of (optimal moves, # of moves)
         self.optimal_policy_used = []
-        '''
+        #####################'''
 
 
     def reset(self, destination=None):
         self.planner.route_to(destination)
         # TODO: Prepare for a new trip; reset any variables here, if required
-
-        ## reset variables
-        self.transitions = {}
 
         ''' Extra variables
         self.reward_sum = 0  ## reset within-trial reward total
@@ -59,7 +57,7 @@ class LearningAgent(Agent):
 
         ## E-Greedy Exploration: decay epsilon, goes to 0 at 40th of 50 trials
         self.epsilon -= .025*(self.current_trial/2)
-        '''
+        #######################'''
 
     def update(self, t):
         # Gather inputs
@@ -69,20 +67,20 @@ class LearningAgent(Agent):
 
         # TODO: Update state
 
-        ## create state as inputs, next_waypoint
-        current_state = tuple(inputs.values() + [self.next_waypoint])
-        ##current_state = tuple(inputs.values())  ## dont incl next_waypoint
+        ## update state as (light, oncoming, next_waypoint)
+        if inputs['oncoming'] == None:
+            traffic = 'no_oncoming'
+        else:
+            traffic = 'oncoming'
+
+        self.state = (inputs.values()[0], traffic, self.next_waypoint)
+        ##print 'current state:', self.state  ## [debug]
 
         # TODO: Select action according to your policy
         action = None
 
-        ## create new Q(s,a) entry if not in dict
-        if current_state not in self.Q.keys():
-            ##self.Q[current_state] = [0, 0, 0, 0]  ## initialize w/ zeros
-            self.Q[current_state] = [3, 3, 3, 3]  ## initialize non-zero
-
         ## assign max Q value for current state
-        max_Q = self.Q[current_state].index(max(self.Q[current_state]))
+        max_Q = self.Q[self.state].index(max(self.Q[self.state]))
 
         ## assign action based on max Q value
         action = self.A[max_Q]
@@ -103,7 +101,7 @@ class LearningAgent(Agent):
 
         ## assign action randomly
         ##action = random.choice(self.A)
-        '''
+        ###############################'''
 
         ''' Keep track of optimal policy
         ## assumes next_waypoint is ideal (best) action at each step
@@ -126,7 +124,7 @@ class LearningAgent(Agent):
             self.optimal_action_used.append(1)  ## optimal action
         else:
             self.optimal_action_used.append(0)  ## not optimal action
-        '''
+        ################################'''
 
         # Execute action and get reward
         reward = self.env.act(self, action)
@@ -134,48 +132,45 @@ class LearningAgent(Agent):
         ''' Keep track of total rewards
         ## increment sum of rewards
         self.reward_sum += reward
-        ##print 'reward sum: {}'.format(self.reward_sum)  ## [debug]
-        '''
+        print 'Reward sum: {}'.format(self.reward_sum)  ## [debug]
+        ##############################'''
 
         # TODO: Learn policy based on state, action, reward
-
-        ## update history of states visited
-        self.transitions[t] = (current_state, self.A.index(action), reward)
-        ##print 'transition:', self.transitions[t]  ## [debug]
 
         ## Q-learning params
         gamma = 0.5  ## discount factor of max Q(s',a')
         alpha = 0.2  ## learning rate, decay Q value
 
+        ## grab next state for Q(s',a')
+        next_inputs = self.env.sense(self)
+        if next_inputs['oncoming'] == None:
+            next_traffic = 'no_oncoming'
+        else:
+            next_traffic = 'oncoming'
+        next_next_waypoint = self.planner.next_waypoint()
+        next_state = (next_inputs.values()[0], next_traffic, next_next_waypoint)
+        ##print 'next_state:', next_state  ## [debug]
+
         ## update Q table
-        if t!=0:  ## update after first step
-            self.Q[self.transitions[t-1][0]][self.transitions[t-1][1]] = \
-                (1-alpha)*self.Q[self.transitions[t-1][0]][self.transitions[t-1][1]] + \
-                (alpha * (self.transitions[t-1][2] + gamma * self.Q[current_state][max_Q]))
+        self.Q[self.state][self.A.index(action)] = \
+            (1-alpha)*self.Q[self.state][self.A.index(action)] + \
+            (alpha * (reward + gamma * max(self.Q[next_state])))
+        ##print 'Q({}): {}'.format(len(self.Q), self.Q)  ## [debug]
 
-        ## update Q, results at end of trial
-        if reward > 2:  ## if destination reached
-            self.Q[current_state][self.A.index(action)] = \
-                (1-alpha)*self.Q[current_state][self.A.index(action)] + \
-                (alpha * reward)
+        print 'LearningAgent.update({}): deadline = {}, inputs = {}, action = {}, reward = {}'.format(t, deadline, inputs, action, reward)  # [debug]
 
-            ##self.results.append(('Win!',self.init_deadline))  ## track wins
-            ##print 'results:',self.results  ## [debug]
+        ''' Update list of results at end of trial
+        if self.env.done == True:  ## if destination reached
+            self.results.append(('Win!',self.init_deadline))  ## track wins
+            print '---- Results:',self.results  ## [debug]
 
-            ##self.optimal_policy_used.append((sum(self.optimal_action_used), len(self.optimal_action_used)))  ## track optimal policy moves
-            ##print 'optimal policy used: {}'.format(self.optimal_policy_used)  ## [debug]
+            self.optimal_policy_used.append((sum(self.optimal_action_used), len(self.optimal_action_used)))  ## track optimal policy moves
+            print '---- Optimal moves: {}'.format(self.optimal_policy_used)  ## [debug]
 
-        else:  ## if destination not reached
-            if deadline == 0:
-                self.Q[current_state][self.A.index(action)] = \
-                    (1-alpha)*self.Q[current_state][self.A.index(action)] + \
-                    (alpha * reward)
-
-                ##self.results.append(('Failed',self.init_deadline))  ## track fails
-                ##print 'results:',self.results  ## [debug]
-
-        ##print "Q({}): {}".format(len(self.Q), self.Q)  ## [debug]
-        print "LearningAgent.update({}): deadline = {}, inputs = {}, action = {}, reward = {}".format(t, deadline, inputs, action, reward)  # [debug]
+        elif deadline==0:  ## if destination not reached
+            self.results.append(('Failed',self.init_deadline))  ## track fails
+            print '---- Results:',self.results  ## [debug]
+        ########################'''
 
 
 def run():
@@ -188,7 +183,7 @@ def run():
 
     # Now simulate it
     sim = Simulator(e)
-    sim.run(n_trials=20)  # press Esc or close pygame window to quit
+    sim.run(n_trials=50)  # press Esc or close pygame window to quit
 
 
 if __name__ == '__main__':
