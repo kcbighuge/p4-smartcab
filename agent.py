@@ -68,11 +68,7 @@ class LearningAgent(Agent):
         # TODO: Update state
 
         ## update state as (light, oncoming, next_waypoint)
-        if inputs['oncoming'] == None:
-            traffic = 'no_oncoming'
-        else:
-            traffic = 'oncoming'
-
+        traffic = ('no_oncoming' if inputs['oncoming'] == None else 'oncoming')
         self.state = (inputs.values()[0], traffic, self.next_waypoint)
         ##print 'current state:', self.state  ## [debug]
 
@@ -143,10 +139,7 @@ class LearningAgent(Agent):
 
         ## grab next state for Q(s',a')
         next_inputs = self.env.sense(self)
-        if next_inputs['oncoming'] == None:
-            next_traffic = 'no_oncoming'
-        else:
-            next_traffic = 'oncoming'
+        next_traffic = ('no_oncoming' if next_inputs['oncoming'] == None else 'oncoming')
         next_next_waypoint = self.planner.next_waypoint()
         next_state = (next_inputs.values()[0], next_traffic, next_next_waypoint)
         ##print 'next_state:', next_state  ## [debug]
@@ -183,7 +176,7 @@ def run():
 
     # Now simulate it
     sim = Simulator(e)
-    sim.run(n_trials=50)  # press Esc or close pygame window to quit
+    sim.run(n_trials=100)  # press Esc or close pygame window to quit
 
 
 if __name__ == '__main__':
