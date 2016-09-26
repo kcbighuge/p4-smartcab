@@ -10,7 +10,7 @@ class LearningAgent(Agent):
         super(LearningAgent, self).__init__(env)  # sets self.env = env, state = None, next_waypoint = None, and a default color
         self.color = 'blue'  # override color
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
-        # TODO: Initialize any additional variables here
+        # DONE: Initialize any additional variables here
 
         ## actions A
         self.A = Environment.valid_actions  ## None, 'forward', 'left', 'right'
@@ -22,7 +22,7 @@ class LearningAgent(Agent):
                 for k in self.A:  ## loop through next_waypoints
                     self.Q[(i,j,k)] = [3] * len(self.A)  ## init Q(s,a)
 
-        ''' Extra variables
+        ''' Extra variables for alternate implementations
         ## keep track of total rewards earned
         self.reward_sum = 0
 
@@ -37,14 +37,14 @@ class LearningAgent(Agent):
 
         ## keep track of optimal policy used as tuples of (optimal moves, # of moves)
         self.optimal_policy_used = []
-        #####################'''
+        '''
 
 
     def reset(self, destination=None):
         self.planner.route_to(destination)
-        # TODO: Prepare for a new trip; reset any variables here, if required
+        # DONE: Prepare for a new trip; reset any variables here, if required
 
-        ''' Extra variables
+        ''' Extra variables for alternate implementations
         self.reward_sum = 0  ## reset within-trial reward total
         ## keep track of initial deadline for the trial
         self.init_deadline = self.env.get_deadline(self)
@@ -57,7 +57,7 @@ class LearningAgent(Agent):
 
         ## E-Greedy Exploration: decay epsilon, goes to 0 at 40th of 50 trials
         self.epsilon -= .025*(self.current_trial/2)
-        #######################'''
+        '''
 
     def update(self, t):
         # Gather inputs
@@ -65,14 +65,14 @@ class LearningAgent(Agent):
         inputs = self.env.sense(self)
         deadline = self.env.get_deadline(self)
 
-        # TODO: Update state
+        # DONE: Update state
 
         ## update state as (light, oncoming, next_waypoint)
         traffic = ('no_oncoming' if inputs['oncoming'] == None else 'oncoming')
         self.state = (inputs.values()[0], traffic, self.next_waypoint)
         ##print 'current state:', self.state  ## [debug]
 
-        # TODO: Select action according to your policy
+        # DONE: Select action according to your policy
         action = None
 
         ## assign max Q value for current state
@@ -80,9 +80,9 @@ class LearningAgent(Agent):
 
         ## assign action based on max Q value
         action = self.A[max_Q]
-
-        ''' Alternate methods for choosing action
-        ## simulated annealing: take random action w/ probability epsilon
+        
+        ## 3 alternate methods explored
+        ''' 1. simulated annealing: take random action w/ probability epsilon
         ## generate random number to choose random action
         if random.randint(1,100) <= (self.epsilon * 100):
             action = random.choice(self.A)
@@ -90,16 +90,18 @@ class LearningAgent(Agent):
         else:
             action = self.A[max_Q]
             print 'Step {}: Max Q Action!!'.format(t)  ## [debug]
+        '''
 
-        ## E-Greedy Exploration: decay epsilon with each step in trial
+        ''' 2. E-Greedy Exploration: decay epsilon with each step in trial
         self.epsilon = self.epsilon*.9
-        ##print 'epsilon:', self.epsilon  ## [debug]
+        print 'epsilon:', self.epsilon  ## [debug]
+        '''
 
-        ## assign action randomly
-        ##action = random.choice(self.A)
-        ###############################'''
-
-        ''' Keep track of optimal policy
+        ''' 3. assign action randomly
+        action = random.choice(self.A)
+        '''
+        
+        ''' Keeping track of optimal policy
         ## assumes next_waypoint is ideal (best) action at each step
         best_action_ok = True
         if self.next_waypoint == 'right':
@@ -120,7 +122,7 @@ class LearningAgent(Agent):
             self.optimal_action_used.append(1)  ## optimal action
         else:
             self.optimal_action_used.append(0)  ## not optimal action
-        ################################'''
+        '''
 
         # Execute action and get reward
         reward = self.env.act(self, action)
@@ -129,10 +131,9 @@ class LearningAgent(Agent):
         ## increment sum of rewards
         self.reward_sum += reward
         print 'Reward sum: {}'.format(self.reward_sum)  ## [debug]
-        ##############################'''
+        '''
 
-        # TODO: Learn policy based on state, action, reward
-
+        # DONE: Learn policy based on state, action, reward
         ## Q-learning params
         gamma = 0.5  ## discount factor of max Q(s',a')
         alpha = 0.2  ## learning rate, decay Q value
@@ -163,7 +164,7 @@ class LearningAgent(Agent):
         elif deadline==0:  ## if destination not reached
             self.results.append(('Failed',self.init_deadline))  ## track fails
             print '---- Results:',self.results  ## [debug]
-        ########################'''
+        '''
 
 
 def run():
